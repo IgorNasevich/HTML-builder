@@ -23,7 +23,7 @@ stdin.on('data', data => {
     let dataStringified = data.toString();
     dataStringified = dataStringified.slice(0, dataStringified.length-2);
     if(dataStringified === "exit"){
-        stdout.write('See U later...\n');
+        stdout.write('see u later...\n');
         exit();
     }
     fs.appendFile(

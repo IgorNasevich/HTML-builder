@@ -44,7 +44,7 @@ emitter.on('third file is ready to be inserted', (header, articles, footer)=>{
     fs.readFile(path.join(__dirname, "template.html"), (err, data) => {
         if(err) throw err;
         let array = data.toString().split("\n");
-        for(let i in array) {
+        for(let i = 0; i < array.length; i++) {
             let newString = array[i];
             if(array[i].includes("{{header}}")){
                 newString = header+"\n";
@@ -55,17 +55,21 @@ emitter.on('third file is ready to be inserted', (header, articles, footer)=>{
             else if(array[i].includes("{{footer}}")){
                 newString = footer+"\n";
             }
-            fs.appendFile(
-                path.join(__dirname, 'project-dist', "index.html"),
-                newString,
-                err => {
-                    if (err) throw err;
-                }
-            )
+            emitter.emit('push the line', newString);
         }
         emitter.emit('html is ready');
     });
 })
+
+emitter.on('push the line', (newString) => {
+    fs.appendFile(
+        path.join(__dirname, 'project-dist', "index.html"),
+        newString,
+        err => {
+            if (err) throw err;
+        }
+    );
+});
 
 emitter.on('html is ready', ()=>{
     fs.writeFile(
