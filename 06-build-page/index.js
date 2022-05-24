@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const EventEmitter = require('events');
 const emitter = new EventEmitter();
+let htmlList = [];
 
 fs.mkdir(path.join(__dirname, 'project-dist'), {recursive:true}, err => {
     if (err) throw err;
@@ -16,60 +17,62 @@ fs.mkdir(path.join(__dirname, 'project-dist'), {recursive:true}, err => {
 });
 
 emitter.on('file is generated', ()=>{
-    let firstFile = '';
-    fs.readFile(path.join(__dirname, 'components', "header.html"), (err, data) => {
-        firstFile = data;
-        emitter.emit('first file is ready to be inserted', firstFile);
+    fs.readdir(path.join(__dirname, 'components',), {withFileTypes:true}, (err, files) => { 
+        if(err) throw err;  
+        for (const file of files){
+            if(file.isFile()){
+                if(file.name.split('.')[1] === 'html'){
+                    fs.readFile(path.join(__dirname, 'components', file.name), (err, data) => {
+                        if(err) throw err;
+                        htmlList.push({
+                            name: file.name.split('.')[0],
+                            content: data
+                        }); 
+                        emitter.emit('html component has been read');
+                    });   
+                }
+            }
+        }
+        let readComponentsCount = 0; 
+        emitter.on('html component has been read', ()=> {
+            readComponentsCount++;
+            if(readComponentsCount === files.length - 1){
+                emitter.emit('html list is ready');
+            }
+        });
     });
 });
 
-emitter.on('first file is ready to be inserted', (firstFile)=>{
-    let secondFile = '';
-    fs.readFile(path.join(__dirname, 'components', "articles.html"), (err, data) => {
-        secondFile = data;
-        emitter.emit('second file is ready to be inserted', firstFile, secondFile);
-    });
-});
-
-emitter.on('second file is ready to be inserted', (firstFile, secondFile)=>{
-    let thirdFile = '';
-    fs.readFile(path.join(__dirname, 'components', "footer.html"), (err, data) => {
-        thirdFile = data;
-        emitter.emit('third file is ready to be inserted', firstFile, secondFile, thirdFile);
-    });
-});
-
-
-emitter.on('third file is ready to be inserted', (header, articles, footer)=>{
+emitter.on('html list is ready', ()=>{
     fs.readFile(path.join(__dirname, "template.html"), (err, data) => {
         if(err) throw err;
         let array = data.toString().split("\n");
-        for(let i = 0; i < array.length; i++) {
+        let i = 0; 
+        emitter.on('push the line', ()=>{
+            if(i === array.length){
+                emitter.emit('html is ready');
+                return;
+            }
             let newString = array[i];
-            if(array[i].includes("{{header}}")){
-                newString = header+"\n";
+            for(let j = 0; j < htmlList.length; j++){
+                if(array[i].includes("{{" + htmlList[j].name + "}}")){
+                    newString = htmlList[j].content+"\n";
+                }
             }
-            else if(array[i].includes("{{articles}}")){
-                newString = articles+"\n";
-            }
-            else if(array[i].includes("{{footer}}")){
-                newString = footer+"\n";
-            }
-            emitter.emit('push the line', newString);
-        }
-        emitter.emit('html is ready');
+            fs.appendFile(
+                path.join(__dirname, 'project-dist', "index.html"),
+                newString,
+                err => {
+                    if (err) throw err;
+                    i++;
+                    emitter.emit('push the line');
+                }
+            );
+        }) 
+        emitter.emit('push the line');           
     });
 })
 
-emitter.on('push the line', (newString) => {
-    fs.appendFile(
-        path.join(__dirname, 'project-dist', "index.html"),
-        newString,
-        err => {
-            if (err) throw err;
-        }
-    );
-});
 
 emitter.on('html is ready', ()=>{
     fs.writeFile(
@@ -154,3 +157,5 @@ emitter.on('img folder is ready', () => {
         });
     });
 })
+
+
